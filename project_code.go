@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv" //"github.com/hyperledger/fabric/core/chaincode/shim"
 	//pb "github.com/hyperledger/fabric/protos/peer"
 	"time"
@@ -466,6 +467,95 @@ func (t *SimpleChaincode) uplataRateKredita(stub shim.ChaincodeStubInterface, ar
 
 	ajson, _ := json.Marshal(korisnikFromJson)
 	err = stub.PutState(korisnikFromJson.ID, ajson)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	return shim.Success(nil)
+}
+
+func (t *SimpleChaincode) izvrsiTransakciju(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+
+	var idUplatioca, idPrimaoca, iznosTransakcije, minus string
+
+	idUplatioca = args[0]
+	idPrimaoca = args[1]
+	iznosTransakcije = args[2]
+	minus = args[3]
+
+	//load uplatioc
+	loadedUplatioc, err := stub.GetState(idUplatioca)
+
+	if err != nil {
+		jsonResp := "{\"Error\":\"Failed to get state for " + idUplatioca + "\"}"
+		return shim.Error(jsonResp)
+	}
+	if loadedUplatioc == nil || len(loadedUplatioc) == 0 {
+		jsonResp := "{\"Error\":\" " + idUplatioca + " does not exit " + "\"}"
+		return shim.Error(jsonResp)
+	}
+
+	uplatilacFromJson := korisnik{}
+	err = json.Unmarshal(loadedUplatioc, &uplatilacFromJson)
+	if err != nil {
+		return shim.Error("Failed to unmarshall Uplatilac")
+	}
+
+	loadedPrimaoc, err := stub.GetState(idPrimaoca)
+
+	if err != nil {
+		jsonResp := "{\"Error\":\"Failed to get state for " + idPrimaoca + "\"}"
+		return shim.Error(jsonResp)
+	}
+	if loadedPrimaoc == nil || len(loadedPrimaoc) == 0 {
+		jsonResp := "{\"Error\":\" " + idPrimaoca + " does not exit " + "\"}"
+		return shim.Error(jsonResp)
+	}
+
+	primaocFromJson := korisnik{}
+	err = json.Unmarshal(loadedPrimaoc, &primaocFromJson)
+	if err != nil {
+		return shim.Error("Failed to unmarshall Korisnik")
+	}
+
+	iznosTransakcijeFloat, errIznos := strconv.ParseFloat(iznosTransakcije, 64)
+	if errIznos != nil {
+		return shim.Error("Iznos transakcije mora biti realan broj")
+	}
+
+	var minusBool = false
+
+	if minus == "DA" {
+		var sumaUplata = 0.0
+		var brojUplata = 0
+		for i := 0; i < len(uplatilacFromJson.Transakcije); i++ {
+			if uplatilacFromJson.Transakcije[i].IDPrimalac == uplatilacFromJson.ID {
+				sumaUplata += uplatilacFromJson.Transakcije[i].KolicinaNovca
+				brojUplata++
+			}
+		}
+		if math.Abs(uplatilacFromJson.KolicinaNovca-iznosTransakcijeFloat) < sumaUplata/float64(brojUplata) {
+			minusBool = true
+		}
+	}
+
+	if uplatilacFromJson.KolicinaNovca-iznosTransakcijeFloat < 0 && minusBool == false {
+		return shim.Error("Nemate dovoljno novca za ovu transakciju!")
+	}
+
+	//ako su svi uslovi ispunjeni, ovde ide transfer novca
+
+	uplatilacFromJson.KolicinaNovca -= iznosTransakcijeFloat
+	primaocFromJson.KolicinaNovca += iznosTransakcijeFloat
+
+	ajson, _ := json.Marshal(uplatilacFromJson)
+	err = stub.PutState(uplatilacFromJson.ID, ajson)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	ajson, _ = json.Marshal(primaocFromJson)
+	err = stub.PutState(primaocFromJson.ID, ajson)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
