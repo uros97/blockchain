@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv" //"github.com/hyperledger/fabric/core/chaincode/shim"
 	//pb "github.com/hyperledger/fabric/protos/peer"
+	"time"
 
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
@@ -27,6 +28,7 @@ type korisnik struct {
 	Email         string
 	KolicinaNovca float64
 	Krediti       []kredit
+	Transakcije   []transakcija
 }
 
 type transakcija struct {
@@ -75,9 +77,29 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 	var zaK3 = make([]kredit, 0, 20)
 	zaK3 = append(zaK3, kredit4)
 
-	var korisnik1 = korisnik{"ko1", "1", "Pera", "Peric", "pera@gmail.com", 1000.0, zaK1}
-	var korisnik2 = korisnik{"ko2", "2", "Marko", "Markovic", "mare@gmail.com", 2000.0, zaK2}
-	var korisnik3 = korisnik{"ko3", "3", "Zika", "Zikic", "zika@gmail.com", 3000.0, zaK3}
+	var transakcija1 = transakcija{"t1", "1.1.2020", "ko1", "ko2", 100.0}
+	var transakcija2 = transakcija{"t2", "2.1.2020", "ko2", "ko1", 200.0}
+	var transakcija3 = transakcija{"t3", "3.1.2020", "ko1", "ko3", 300.0}
+	var transakcija4 = transakcija{"t4", "4.1.2020", "ko3", "ko2", 400.0}
+	transakcijaId = 5
+
+	var tzaK1 = make([]transakcija, 0, 100)
+	tzaK1 = append(tzaK1, transakcija1)
+	tzaK1 = append(tzaK1, transakcija2)
+	tzaK1 = append(tzaK1, transakcija3)
+
+	var tzaK2 = make([]transakcija, 0, 100)
+	tzaK2 = append(tzaK2, transakcija1)
+	tzaK2 = append(tzaK2, transakcija2)
+	tzaK2 = append(tzaK2, transakcija4)
+
+	var tzaK3 = make([]transakcija, 0, 100)
+	tzaK3 = append(tzaK3, transakcija3)
+	tzaK3 = append(tzaK3, transakcija4)
+
+	var korisnik1 = korisnik{"ko1", "1", "Pera", "Peric", "pera@gmail.com", 1000.0, zaK1, tzaK1}
+	var korisnik2 = korisnik{"ko2", "2", "Marko", "Markovic", "mare@gmail.com", 2000.0, zaK2, tzaK2}
+	var korisnik3 = korisnik{"ko3", "3", "Zika", "Zikic", "zika@gmail.com", 3000.0, zaK3, tzaK3}
 	korisnikId = 4
 
 	var drzave1 = make([]string, 0, 20)
@@ -97,12 +119,6 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 	korisnici2 = append(korisnici2, korisnik3)
 	var banka2 = banka{"b2", "Druga banka", 1987, "Srbija", drzave2, korisnici2}
 	bankaId = 3
-
-	var transakcija1 = transakcija{"t1", "1.1.2020", "1", "2", 100.0}
-	var transakcija2 = transakcija{"t2", "2.1.2020", "2", "1", 200.0}
-	var transakcija3 = transakcija{"t3", "3.1.2020", "1", "3", 300.0}
-	var transakcija4 = transakcija{"t4", "4.1.2020", "3", "2", 400.0}
-	transakcijaId = 5
 
 	// Write the state to the ledger
 
@@ -239,9 +255,9 @@ func (t *SimpleChaincode) dodajKorisnika(stub shim.ChaincodeStubInterface, args 
 	korisnikId = korisnikId + 1
 
 	var newKrediti = make([]kredit, 0, 20)
-
+	var newTransakcije = make([]transakcija, 0, 100)
 	//TODO mora i provera da li vec postoji korisnik sa ovim ID
-	var newKorisnik = korisnik{korId, brRacuna, ime, prezime, email, kolicinaNovcaFloat, newKrediti}
+	var newKorisnik = korisnik{korId, brRacuna, ime, prezime, email, kolicinaNovcaFloat, newKrediti, newTransakcije}
 
 	ajson, _ := json.Marshal(newKorisnik)
 	err := stub.PutState(newKorisnik.ID, ajson)
@@ -317,6 +333,145 @@ func (t *SimpleChaincode) dodajKorisnikaBanci(stub shim.ChaincodeStubInterface, 
 	return shim.Success(nil)
 }
 
+func (t *SimpleChaincode) podizanjeKredita(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	var idKorisnika, iznosKredita, brojRata, kamata string // Entities
+
+	if len(args) != 5 {
+		return shim.Error("Netacan broj argumenata! Ocekivani argumenti: ID korisnika, iznos kredita, broj rata, kamata")
+	}
+
+	idKorisnika = args[0]
+	iznosKredita = args[1]
+	brojRata = args[2]
+	kamata = args[3]
+
+	//load korisnik
+	loadedKorisnik, err := stub.GetState(idKorisnika)
+
+	if err != nil {
+		jsonResp := "{\"Error\":\"Failed to get state for " + idKorisnika + "\"}"
+		return shim.Error(jsonResp)
+	}
+	if loadedKorisnik == nil || len(loadedKorisnik) == 0 {
+		jsonResp := "{\"Error\":\" " + idKorisnika + " does not exit " + "\"}"
+		return shim.Error(jsonResp)
+	}
+
+	korisnikFromJson := korisnik{}
+	err = json.Unmarshal(loadedKorisnik, &korisnikFromJson)
+	if err != nil {
+		return shim.Error("Failed to unmarshall Korisnik")
+	}
+
+	for i := 0; i < len(korisnikFromJson.Krediti); i++ {
+		if korisnikFromJson.Krediti[i].BrojOtplacenihRate != korisnikFromJson.Krediti[i].BrojRata {
+			return shim.Error("Zeljeni korisnik ima neotplacen kredit!")
+		}
+	}
+
+	sumaUplata := 0.0
+	brojUplata := 0
+	for i := 0; i < len(korisnikFromJson.Transakcije); i++ {
+		if korisnikFromJson.Transakcije[i].IDPrimalac == korisnikFromJson.ID {
+			sumaUplata += korisnikFromJson.Transakcije[i].KolicinaNovca
+			brojUplata++
+		}
+	}
+	maxIznosKredita := (sumaUplata / float64(brojUplata)) * 5.0
+
+	iznosKreditaFloat, floatError := strconv.ParseFloat(iznosKredita, 64)
+	if floatError != nil {
+		return shim.Error("Greska pri parsiranju broja za zeljeni iznos kredita!")
+	}
+
+	if iznosKreditaFloat > maxIznosKredita {
+		return shim.Error("Zeljeni iznos kredita je veci od dozvoljenog!")
+	}
+
+	kamataFloat, kamataErr := strconv.ParseFloat(kamata, 64)
+	if kamataErr != nil {
+		return shim.Error("Zeljeni iznos kamate mora biti realan broj u procentima!")
+	}
+
+	brojRataInt, rateErr := strconv.Atoi(brojRata)
+	if rateErr != nil {
+		return shim.Error("Broj rata mora biti ceo broj!")
+	}
+
+	mesecnaRata := (iznosKreditaFloat * kamataFloat * 0.01) / float64(brojRataInt)
+	datumOdobravanja := time.Now().Format("01-02-2006")
+	var datumZavrsetka = ""
+
+	idKredita := "kr" + strconv.Itoa(kreditId)
+	kreditId = kreditId + 1
+
+	var newKredit = kredit{idKredita, datumOdobravanja, datumZavrsetka, mesecnaRata, kamataFloat, brojRataInt, 0, iznosKreditaFloat}
+	korisnikFromJson.Krediti = append(korisnikFromJson.Krediti, newKredit)
+	//TODO da li da stavim i kredit na state illi samo da update u korisnika?
+	ajson, _ := json.Marshal(newKredit)
+	err = stub.PutState(newKredit.ID, ajson)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	ajson, _ = json.Marshal(korisnikFromJson)
+	err = stub.PutState(korisnikFromJson.ID, ajson)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	return shim.Success(nil)
+}
+
+func (t *SimpleChaincode) uplataRateKredita(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	var idKorisnika string
+
+	idKorisnika = args[0]
+
+	//load korisnik
+	loadedKorisnik, err := stub.GetState(idKorisnika)
+
+	if err != nil {
+		jsonResp := "{\"Error\":\"Failed to get state for " + idKorisnika + "\"}"
+		return shim.Error(jsonResp)
+	}
+	if loadedKorisnik == nil || len(loadedKorisnik) == 0 {
+		jsonResp := "{\"Error\":\" " + idKorisnika + " does not exit " + "\"}"
+		return shim.Error(jsonResp)
+	}
+
+	korisnikFromJson := korisnik{}
+	err = json.Unmarshal(loadedKorisnik, &korisnikFromJson)
+	if err != nil {
+		return shim.Error("Failed to unmarshall Korisnik")
+	}
+
+	var rbrKredita = -1
+	for i := 0; i < len(korisnikFromJson.Krediti); i++ {
+		if korisnikFromJson.Krediti[i].BrojOtplacenihRate != korisnikFromJson.Krediti[i].BrojRata {
+			rbrKredita = i
+		}
+	}
+
+	if rbrKredita == -1 {
+		return shim.Error("Nemate zaduzen kredit!")
+	}
+
+	if korisnikFromJson.Krediti[rbrKredita].VelicinaRate > korisnikFromJson.KolicinaNovca {
+		return shim.Error("Nemate dovoljno novca na racunu da platite ratu za kredit!")
+	}
+
+	korisnikFromJson.Krediti[rbrKredita].BrojOtplacenihRate++
+	korisnikFromJson.KolicinaNovca -= korisnikFromJson.Krediti[rbrKredita].VelicinaRate
+
+	ajson, _ := json.Marshal(korisnikFromJson)
+	err = stub.PutState(korisnikFromJson.ID, ajson)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	return shim.Success(nil)
+}
 func main() {
 
 }
