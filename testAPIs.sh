@@ -63,6 +63,8 @@ ORG1_TOKEN=$(echo $ORG1_TOKEN | jq ".token" | sed "s/\"//g")
 echo
 echo "ORG1 token is $ORG1_TOKEN"
 echo
+
+echo
 echo "POST request Enroll on Org2 ..."
 echo
 ORG2_TOKEN=$(curl -s -X POST \
@@ -73,6 +75,8 @@ echo $ORG2_TOKEN
 ORG2_TOKEN=$(echo $ORG2_TOKEN | jq ".token" | sed "s/\"//g")
 echo
 echo "ORG2 token is $ORG2_TOKEN"
+echo
+
 echo
 echo "POST request Enroll on Org3 ..."
 echo
@@ -85,6 +89,8 @@ ORG3_TOKEN=$(echo $ORG3_TOKEN | jq ".token" | sed "s/\"//g")
 echo
 echo "ORG3 token is $ORG3_TOKEN"
 echo
+echo
+echo "########################################################################"
 echo
 echo "POST request Create channel  ..."
 echo
@@ -99,6 +105,7 @@ curl -s -X POST \
 echo
 echo
 sleep 5
+echo
 echo "POST request Join channel on Org1"
 echo
 curl -s -X POST \
@@ -111,6 +118,7 @@ curl -s -X POST \
 echo
 echo
 
+echo
 echo "POST request Join channel on Org2"
 echo
 curl -s -X POST \
@@ -123,6 +131,7 @@ curl -s -X POST \
 echo
 echo
 
+echo
 echo "POST request Join channel on Org3"
 echo
 curl -s -X POST \
@@ -134,7 +143,8 @@ curl -s -X POST \
 }'
 echo
 echo
-
+echo "######################################################################################"
+echo
 echo "POST request Update anchor peers on Org1"
 echo
 curl -s -X POST \
@@ -147,6 +157,7 @@ curl -s -X POST \
 echo
 echo
 
+echo
 echo "POST request Update anchor peers on Org2"
 echo
 curl -s -X POST \
@@ -159,6 +170,7 @@ curl -s -X POST \
 echo
 echo
 
+echo
 echo "POST request Update anchor peers on Org3"
 echo
 curl -s -X POST \
@@ -170,7 +182,8 @@ curl -s -X POST \
 }'
 echo
 echo
-
+echo "#######################################################################"
+echo
 echo "POST Install chaincode on Org1"
 echo
 curl -s -X POST \
@@ -187,6 +200,7 @@ curl -s -X POST \
 echo
 echo
 
+echo
 echo "POST Install chaincode on Org2"
 echo
 curl -s -X POST \
@@ -203,6 +217,7 @@ curl -s -X POST \
 echo
 echo
 
+echo
 echo "POST Install chaincode on Org3"
 echo
 curl -s -X POST \
@@ -219,6 +234,7 @@ curl -s -X POST \
 echo
 echo
 
+echo
 echo "POST instantiate chaincode on Org1"
 echo
 curl -s -X POST \
