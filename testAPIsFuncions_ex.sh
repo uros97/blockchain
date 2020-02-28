@@ -341,3 +341,53 @@ echo $VALUES
 MESSAGE=$(echo $VALUES | jq -r ".message")
 TRX_ID=${MESSAGE#*ID: }
 echo
+
+echo
+echo "POST invoke chaincode on peers of Org1 and Org2 (Vrsenje transakcije - ERROR korisnik ide u minus, a nije specificirao da zeli!!)"
+VALUES=$(curl -s -X POST \
+  http://localhost:4000/channels/mychannel/chaincodes/mycc \
+  -H "authorization: Bearer $ORG1_TOKEN" \
+  -H "content-type: application/json" \
+  -d "{
+  \"peers\": [\"peer0.org1.example.com\",\"peer0.org2.example.com\",\"peer0.org3.example.com\"],
+  \"fcn\":\"izvrsiTransakciju\",
+  \"args\":[\"ko1\",\"ko2\",\"850\",\"NE\"]
+}")
+echo $VALUES
+# Assign previous invoke transaction id  to TRX_ID
+MESSAGE=$(echo $VALUES | jq -r ".message")
+TRX_ID=${MESSAGE#*ID: }
+echo
+
+echo
+echo "POST invoke chaincode on peers of Org1 and Org2 (Vrsenje transakcije, moze u minus!!)"
+VALUES=$(curl -s -X POST \
+  http://localhost:4000/channels/mychannel/chaincodes/mycc \
+  -H "authorization: Bearer $ORG1_TOKEN" \
+  -H "content-type: application/json" \
+  -d "{
+  \"peers\": [\"peer0.org1.example.com\",\"peer0.org2.example.com\",\"peer0.org3.example.com\"],
+  \"fcn\":\"izvrsiTransakciju\",
+  \"args\":[\"ko1\",\"ko2\",\"850\",\"DA\"]
+}")
+echo $VALUES
+# Assign previous invoke transaction id  to TRX_ID
+MESSAGE=$(echo $VALUES | jq -r ".message")
+TRX_ID=${MESSAGE#*ID: }
+echo
+
+echo
+echo "GET query chaincode on peer1 of Org1"
+curl -s -X GET \
+  "http://localhost:4000/channels/mychannel/chaincodes/mycc?peer=peer0.org1.example.com&fcn=query&args=%5B%22ko1%22%5D" \
+  -H "authorization: Bearer $ORG1_TOKEN" \
+  -H "content-type: application/json"
+echo
+
+echo
+echo "GET query chaincode on peer1 of Org1"
+curl -s -X GET \
+  "http://localhost:4000/channels/mychannel/chaincodes/mycc?peer=peer0.org1.example.com&fcn=query&args=%5B%22ko2%22%5D" \
+  -H "authorization: Bearer $ORG1_TOKEN" \
+  -H "content-type: application/json"
+echo
